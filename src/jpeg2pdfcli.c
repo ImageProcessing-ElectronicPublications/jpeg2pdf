@@ -17,6 +17,15 @@
 #define HAVE_GLOB
 #include <glob.h>
 #endif
+#ifndef abs
+#define abs(a)    ((a) < 0 ? (-(a)) : (a))
+#endif
+#ifndef min
+#define min(a,b)  ((a) < (b) ? (a) : (b))
+#endif
+#ifndef max
+#define max(a,b)  ((a) > (b) ? (a) : (b))
+#endif
 
 #include "jpeg2pdf.h"
 
@@ -177,15 +186,6 @@ void getJpegFileImageDimensions(const char *fileName, int fileSize, int pageDpi,
     }
 
     free(jpegBuf);
-}
-
-inline double min(double a, double b)
-{
-    return (a < b) ? a : b;
-}
-inline double max(double a, double b)
-{
-    return (a > b) ? a : b;
 }
 
 #ifdef HAVE_GLOB
