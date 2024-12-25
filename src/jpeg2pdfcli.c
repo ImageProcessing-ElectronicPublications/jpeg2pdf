@@ -29,10 +29,10 @@
 
 #include "jpeg2pdf.h"
 
-unsigned char *JPEG2PDF_VERSION = "1.3";
+unsigned char *JPEG2PDF_VERSION = "1.4";
 
 //Gets the JPEG size from the array of data passed to the function, file reference: http://www.obrador.com/essentialjpeg/headerinfo.htm
-static int get_jpeg_size(unsigned char* data, unsigned int data_size, unsigned short *width, unsigned short *height, unsigned char *colors, double* dpiX, double* dpiY)
+static int get_jpeg_size(unsigned char* data, unsigned int data_size, unsigned short *width, unsigned short *height, unsigned char *colors, float* dpiX, float* dpiY)
 {
     //Check for valid JPEG image
     int i=0; // Keeps track of the position within the file
@@ -42,7 +42,7 @@ static int get_jpeg_size(unsigned char* data, unsigned int data_size, unsigned s
         // Check for valid JPEG header (null terminated JFIF)
 //      if(data[i+2] == 'J' && data[i+3] == 'F' && data[i+4] == 'I' && data[i+5] == 'F' && data[i+6] == 0x00) {
         // Retrieve dpi:
-        /* It is also possible to retrieve "rational" dpi from EXIF data -- in that case it'll be really double.
+        /* It is also possible to retrieve "rational" dpi from EXIF data -- in that case it'll be really float.
            Should we prefer EXIF data when present? */
         UINT8 units=data[i+9];
         if(units==1) // pixels per inch
@@ -90,14 +90,14 @@ static int get_jpeg_size(unsigned char* data, unsigned int data_size, unsigned s
     }
 }
 
-void insertJPEGFile(const char *fileName, int fileSize, PJPEG2PDF pdfId, PageOrientation pageOrientation, ScaleMethod scale, int pageDpi, bool cropHeight, bool cropWidth)
+void insertJPEGFile(const char *fileName, int fileSize, PJPEG2PDF pdfId, PageOrientation pageOrientation, ScaleMethod scale, float pageDpi, bool cropHeight, bool cropWidth)
 {
     FILE  *fp;
     unsigned char *jpegBuf;
     int readInSize;
     unsigned short jpegImgW, jpegImgH;
     unsigned char colors;
-    double dpiX, dpiY;
+    float dpiX, dpiY;
 
     jpegBuf = malloc(fileSize);
     if( jpegBuf==NULL )
@@ -138,14 +138,14 @@ void insertJPEGFile(const char *fileName, int fileSize, PJPEG2PDF pdfId, PageOri
     free(jpegBuf);
 }
 
-void getJpegFileImageDimensions(const char *fileName, int fileSize, int pageDpi, double *width, double *height)   //in inches; copy-pasted from insertJPEGFile(), Jpeg2PDF_AddJpeg() call is replaced with width/height calculation.
+void getJpegFileImageDimensions(const char *fileName, int fileSize, float pageDpi, float *width, float *height)   //in inches; copy-pasted from insertJPEGFile(), Jpeg2PDF_AddJpeg() call is replaced with width/height calculation.
 {
     FILE  *fp;
     unsigned char *jpegBuf;
     int readInSize;
     unsigned short jpegImgW, jpegImgH;
     unsigned char colors;
-    double dpiX, dpiY;
+    float dpiX, dpiY;
 
     jpegBuf = malloc(fileSize);
     if( jpegBuf==NULL )
@@ -176,8 +176,8 @@ void getJpegFileImageDimensions(const char *fileName, int fileSize, int pageDpi,
             dpiX = pageDpi;
             dpiY = pageDpi;
         }
-        *width=((double)jpegImgW)/dpiX;
-        *height=((double)jpegImgH)/dpiY;
+        *width=((float)jpegImgW)/dpiX;
+        *height=((float)jpegImgH)/dpiY;
     }
     else
     {
@@ -189,10 +189,10 @@ void getJpegFileImageDimensions(const char *fileName, int fileSize, int pageDpi,
 }
 
 #ifdef HAVE_GLOB
-void findMaximumDimensions(glob_t globbuf, int globlen, int pageDpi, bool fixedOrientation, double *maxWidth, double *maxHeight)
+void findMaximumDimensions(glob_t globbuf, int globlen, float pageDpi, bool fixedOrientation, float *maxWidth, float *maxHeight)
 {
     int i;
-    double width, height;
+    float width, height;
     struct stat sb;
 
     *maxWidth=*maxHeight=0;
@@ -230,13 +230,13 @@ void findMaximumDimensions(glob_t globbuf, int globlen, int pageDpi, bool fixedO
 }
 #endif
 #ifdef HAVE_FINDFIRST
-void findMaximumDimensions(char **filesarray, int globlen, int pageDpi, bool fixedOrientation, double *maxWidth, double *maxHeight)
+void findMaximumDimensions(char **filesarray, int globlen, float pageDpi, bool fixedOrientation, float *maxWidth, float *maxHeight)
 {
     int i;
-    double width, height;
+    float width, height;
     struct stat sb;
 
-    *maxWidth=*maxHeight=0;
+    *maxWidth=*maxHeight=0.0f;
     for(i=0; i<globlen; i++)
     {
         if (stat(filesarray[i], &sb) == -1)
@@ -304,7 +304,8 @@ int main(int argc, char *argv[])
     FILE *fp;
     char *title=NULL, *author=NULL, *keywords=NULL, *subject=NULL, *creator=NULL;
     int opt;
-    double pageWidth=8.27, pageHeight=11.69, pageWidthDef=0, pageHeightDef=0;
+    float pageWidth=8.27f, pageHeight=11.69f, pageWidthDef=0.0f, pageHeightDef=0.0f;
+    float pageDpi=-1.0f;
     int globindex, globlen;
 #ifdef HAVE_GLOB
     glob_t globbuf;
@@ -319,11 +320,11 @@ int main(int argc, char *argv[])
     struct timeval tv1;
     struct tm *tmp;
     char timestamp[40];
-    int keywordslen, pageDpi=-1;
+    int keywordslen;
     int np;
     JPEG2PDF_MARGIN pageMargins;
-    pageMargins.left = pageMargins.right = pageMargins.top = pageMargins.bottom = -1.0;
-    pageMargins.width = pageMargins.height = 0;
+    pageMargins.left = pageMargins.right = pageMargins.top = pageMargins.bottom = -1.0f;
+    pageMargins.width = pageMargins.height = 0.0f;
 
     PageOrientation pageOrientation=PageOrientationAuto;
     ScaleMethod scale=ScaleFit;
@@ -349,83 +350,83 @@ int main(int argc, char *argv[])
         case 'p':
             if(strcasecmp("A0",optarg)==0)
             {
-                pageWidth=33.11;
-                pageHeight=46.81;
+                pageWidth=33.11f;
+                pageHeight=46.81f;
             }
             else if(strcasecmp("A1",optarg)==0)
             {
-                pageWidth=23.39;
-                pageHeight=33.11;
+                pageWidth=23.39f;
+                pageHeight=33.11f;
             }
             else if(strcasecmp("A2",optarg)==0)
             {
-                pageWidth=16.54;
-                pageHeight=23.39;
+                pageWidth=16.54f;
+                pageHeight=23.39f;
             }
             else if(strcasecmp("A3",optarg)==0)
             {
-                pageWidth=11.69;
-                pageHeight=16.54;
+                pageWidth=11.69f;
+                pageHeight=16.54f;
             }
             else if(strcasecmp("A4",optarg)==0)
             {
-                pageWidth=8.27;
-                pageHeight=11.69;
+                pageWidth=8.27f;
+                pageHeight=11.69f;
             }
             else if(strcasecmp("A5",optarg)==0)
             {
-                pageWidth=5.83;
-                pageHeight=8.27;
+                pageWidth=5.83f;
+                pageHeight=8.27f;
             }
             else if(strcasecmp("A6",optarg)==0)
             {
-                pageWidth=4.13;
-                pageHeight=5.83;
+                pageWidth=4.13f;
+                pageHeight=5.83f;
             }
             else if(strcasecmp("A7",optarg)==0)
             {
-                pageWidth=2.91;
-                pageHeight=4.13;
+                pageWidth=2.91f;
+                pageHeight=4.13f;
             }
             else if(strcasecmp("A8",optarg)==0)
             {
-                pageWidth=2.05;
-                pageHeight=2.91;
+                pageWidth=2.05f;
+                pageHeight=2.91f;
             }
             else if(strcasecmp("A9",optarg)==0)
             {
-                pageWidth=1.46;
-                pageHeight=2.05;
+                pageWidth=1.46f;
+                pageHeight=2.05f;
             }
             else if(strcasecmp("A10",optarg)==0)
             {
-                pageWidth=1.02;
-                pageHeight=1.46;
+                pageWidth=1.02f;
+                pageHeight=1.46f;
             }
             else if(strcasecmp("Letter",optarg)==0)
             {
-                pageWidth=8.5;
-                pageHeight=11.0;
+                pageWidth=8.5f;
+                pageHeight=11.0f;
             }
             else if(strcasecmp("Legal",optarg)==0)
             {
-                pageWidth=8.5;
-                pageHeight=14.0;
+                pageWidth=8.5f;
+                pageHeight=14.0f;
             }
             else if(strcasecmp("Junior",optarg)==0)
             {
-                pageWidth=8.5;
-                pageHeight=5.0;
+                pageWidth=8.5f;
+                pageHeight=5.0f;
             }
             else if(strcasecmp("Ledger",optarg)==0)
             {
-                pageWidth=17.0;
-                pageHeight=11.0;
+                pageWidth=17.0f;
+                pageHeight=11.0f;
             }
             else if(strcasecmp("Tabloid",optarg)==0)
             {
-                pageWidth=11.0;
-                pageHeight=17.0;
+                pageWidth=11.0f;
+                pageHeight=17.0f;
             }
             else if(strcmp("auto",optarg)==0)
             {
@@ -437,7 +438,7 @@ int main(int argc, char *argv[])
             }
             break;
         case 'm':
-            np = sscanf(optarg, "%lf,%lf,%lf,%lf", &pageMargins.left, &pageMargins.top, &pageMargins.right, &pageMargins.bottom);
+            np = sscanf(optarg, "%f,%f,%f,%f", &pageMargins.left, &pageMargins.top, &pageMargins.right, &pageMargins.bottom);
             if (np < 2)
             {
                 pageMargins.top = pageMargins.right = pageMargins.bottom = pageMargins.left;
@@ -450,17 +451,18 @@ int main(int argc, char *argv[])
             /* mm */
             if( strchr(optarg,'m')!=NULL )
             {
-                pageMargins.left /= 25.4;
-                pageMargins.top /= 25.4;
-                pageMargins.right /= 25.4;
-                pageMargins.bottom /= 25.4;
+                pageMargins.left /= 25.4f;
+                pageMargins.top /= 25.4f;
+                pageMargins.right /= 25.4f;
+                pageMargins.bottom /= 25.4f;
             }
             else if( strchr(optarg,'p')!=NULL )
             {
-                pageMargins.left /= ((pageDpi < 0) ? PDF_DEF_DENSITY : pageDpi);
-                pageMargins.top /= ((pageDpi < 0) ? PDF_DEF_DENSITY : pageDpi);
-                pageMargins.right /= ((pageDpi < 0) ? PDF_DEF_DENSITY : pageDpi);
-                pageMargins.bottom /= ((pageDpi < 0) ? PDF_DEF_DENSITY : pageDpi);
+                float pageDpiV = (pageDpi < 0.0f) ? PDF_DEF_DENSITY : pageDpi;
+                pageMargins.left /= pageDpiV;
+                pageMargins.top /= pageDpiV;
+                pageMargins.right /= pageDpiV;
+                pageMargins.bottom /= pageDpiV;
             }
             pageMargins.width = pageMargins.left + pageMargins.right;
             pageMargins.height = pageMargins.top + pageMargins.bottom;
@@ -470,11 +472,11 @@ int main(int argc, char *argv[])
             /* mm */
             if( strchr(optarg,'m')!=NULL )
             {
-                pageWidthDef /= 25.4;
+                pageWidthDef /= 25.4f;
             }
             else if( strchr(optarg,'p')!=NULL )
             {
-                pageWidthDef /= ((pageDpi < 0) ? PDF_DEF_DENSITY : pageDpi);
+                pageWidthDef /= ((pageDpi < 0.0f) ? PDF_DEF_DENSITY : pageDpi);
             }
             break;
         case 'y':
@@ -482,11 +484,11 @@ int main(int argc, char *argv[])
             /* mm */
             if( strchr(optarg,'m')!=NULL )
             {
-                pageHeightDef /= 25.4;
+                pageHeightDef /= 25.4f;
             }
             else if( strchr(optarg,'p')!=NULL )
             {
-                pageHeightDef /= ((pageDpi < 0) ? PDF_DEF_DENSITY : pageDpi);
+                pageHeightDef /= ((pageDpi < 0.0f) ? PDF_DEF_DENSITY : pageDpi);
             }
             break;
         case 't':
@@ -714,7 +716,7 @@ int main(int argc, char *argv[])
     {
         creator="jpeg2pdf";
     }
-    if (pageWidthDef > 0 && pageHeightDef > 0)
+    if (pageWidthDef > 0.0f && pageHeightDef > 0.0f)
     {
         pageWidth = pageWidthDef;
         pageHeight = pageHeightDef;
@@ -798,11 +800,11 @@ int main(int argc, char *argv[])
             exit(EXIT_FAILURE);
         }
 
-        printf("Generating PDF (%d bytes) ...\n", pdfSize);
+        printf("Generating PDF (%ld bytes) ...\n", pdfSize);
         /* Get the PDF into the Data Buffer and do the cleanup */
         Jpeg2PDF_GetFinalDocumentAndCleanup(pdfId, pdfBuf, &pdfSize); /* pdfSize: In: bytes of pdfBuf; Out: bytes used in pdfBuf */
 
-        printf("Writing file '%s' (%d bytes) ...\n", outputFilename, pdfSize);
+        printf("Writing file '%s' (%ld bytes) ...\n", outputFilename, pdfSize);
         /* Output the PDF Data Buffer to file */
         fp = fopen(outputFilename, "wb");
         if( fp==NULL )

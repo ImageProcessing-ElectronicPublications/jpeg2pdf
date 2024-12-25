@@ -37,12 +37,12 @@ struct jpeg2pdf_Node_struct
 
 struct jpeg2pdf_Margin
 {
-    double left;
-    double top;
-    double right;
-    double bottom;
-    double width;
-    double height;
+    float left;
+    float top;
+    float right;
+    float bottom;
+    float width;
+    float height;
 };
 
 typedef struct jpeg2pdf_Node_struct JPEG2PDF_NODE, *PJPEG2PDF_NODE;
@@ -69,9 +69,9 @@ typedef struct
     UINT8 pdfTailer[MAX_PDF_TAILER]; /* 28K Bytes */
     UINT8 pdfXREF[MAX_PDF_XREF][XREF_ENTRY_LEN + 1]; /* 27K Bytes */
     UINT32 pdfObj, currentOffSet, imgObj;
-    double pageW, pageH;
+    float pageW, pageH;
     JPEG2PDF_MARGIN margin;
-    double maxImgW, maxImgH;
+    float maxImgW, maxImgH;
 } JPEG2PDF, *PJPEG2PDF;
 
 typedef enum {PageOrientationAuto, Portrait, Landscape} PageOrientation; // specified by user
@@ -79,8 +79,8 @@ typedef enum {ScaleFit, ScaleFitWidth, ScaleFitHeight, ScaleReduce, ScaleReduceW
 typedef enum {FitWidth, FitHeight, FitNone} Fit; // how we should actually fit the image
 typedef enum {false=0, true} bool;
 
-PJPEG2PDF       Jpeg2PDF_BeginDocument(double pdfW, double pdfH, JPEG2PDF_MARGIN margin); /* pdfW, pdfH: Page Size in Inch ( 1 inch=25.4 mm ) */
-STATUS          Jpeg2PDF_AddJpeg(PJPEG2PDF pPDF, UINT32 imgW, UINT32 imgH, UINT32 fileSize, UINT8 *pJpeg, UINT8 isColor, PageOrientation pageOrientation, double dpiX, double dpiY, ScaleMethod scale, bool cropHeight, bool cropWidth);
+PJPEG2PDF       Jpeg2PDF_BeginDocument(float pdfW, float pdfH, JPEG2PDF_MARGIN margin); /* pdfW, pdfH: Page Size in Inch ( 1 inch=25.4 mm ) */
+STATUS          Jpeg2PDF_AddJpeg(PJPEG2PDF pPDF, UINT32 imgW, UINT32 imgH, UINT32 fileSize, UINT8 *pJpeg, UINT8 isColor, PageOrientation pageOrientation, float dpiX, float dpiY, ScaleMethod scale, bool cropHeight, bool cropWidth);
 UINT32          Jpeg2PDF_EndDocument(PJPEG2PDF pPDF, char *timestamp, char* title, char* author, char* keywords, char* subject, char *creator);
 STATUS          Jpeg2PDF_GetFinalDocumentAndCleanup(PJPEG2PDF pPDF, UINT8 *outPDF, UINT32 *outPDFSize);
 

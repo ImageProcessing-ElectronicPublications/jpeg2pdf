@@ -22,7 +22,7 @@ static void Jpeg2PDF_SetXREF(PJPEG2PDF pPDF, int index, int offset, char c)
     if(JPEG2PDF_DEBUG) logMsg("pPDF->pdfXREF[%d] = %s", index, (int)pPDF->pdfXREF[index], 3,4,5,6);
 }
 
-PJPEG2PDF Jpeg2PDF_BeginDocument(double pdfW, double pdfH, JPEG2PDF_MARGIN margin)   // width and height in default (portrait) orientation
+PJPEG2PDF Jpeg2PDF_BeginDocument(float pdfW, float pdfH, JPEG2PDF_MARGIN margin)   // width and height in default (portrait) orientation
 {
     PJPEG2PDF pPDF;
 
@@ -31,18 +31,18 @@ PJPEG2PDF Jpeg2PDF_BeginDocument(double pdfW, double pdfH, JPEG2PDF_MARGIN margi
     {
         memset(pPDF, 0, sizeof(JPEG2PDF));
         if(JPEG2PDF_DEBUG) logMsg("PDF List Inited (pPDF = %p)\n", (int)pPDF, 2,3,4,5,6);
-        pPDF->pageW = (double)(pdfW * PDF_DOT_PER_INCH);
-        pPDF->pageH = (double)(pdfH * PDF_DOT_PER_INCH);
+        pPDF->pageW = (float)(pdfW * PDF_DOT_PER_INCH);
+        pPDF->pageH = (float)(pdfH * PDF_DOT_PER_INCH);
         //Maximum image size without margins
         pPDF->margin = margin;
-        pPDF->maxImgW = (double) pPDF->pageW - (margin.width * PDF_DOT_PER_INCH);
-        pPDF->maxImgH = (double) pPDF->pageH - (margin.height * PDF_DOT_PER_INCH);
-        if(JPEG2PDF_DEBUG) logMsg("PDF Page Size (%d %d) Max Image Size (%f %f)\n", pPDF->pageW, pPDF->pageH, pPDF->maxImgW, pPDF->maxImgH,3,4,5,6);
+        pPDF->maxImgW = (float) pPDF->pageW - (margin.width * PDF_DOT_PER_INCH);
+        pPDF->maxImgH = (float) pPDF->pageH - (margin.height * PDF_DOT_PER_INCH);
+        if(JPEG2PDF_DEBUG) logMsg("PDF Page Size (%.2f %.2f) Max Image Size (%f %f)\n", pPDF->pageW, pPDF->pageH, pPDF->maxImgW, pPDF->maxImgH,3,4,5,6);
 
         pPDF->currentOffSet = 0;
         Jpeg2PDF_SetXREF(pPDF, 0, pPDF->currentOffSet, 'f');
         pPDF->currentOffSet += sprintf(pPDF->pdfHeader, "%%PDF-1.4\n%%%cJpeg2PDF Engine By: HH [ihaohu@gmail.com]%c\n", 0xFF, 0xFF);
-        if(JPEG2PDF_DEBUG) logMsg("[pPDF=%p], header: %s", (int)pPDF, (int)pPDF->pdfHeader,3,4,5,6);
+        if(JPEG2PDF_DEBUG) logMsg("[pPDF=%d], header: %s", (int)pPDF, (int)pPDF->pdfHeader,3,4,5,6);
 
         pPDF->imgObj = 0;
         pPDF->pdfObj = 2; /* 0 & 1 was reserved for xref & document Root */
@@ -52,12 +52,12 @@ PJPEG2PDF Jpeg2PDF_BeginDocument(double pdfW, double pdfH, JPEG2PDF_MARGIN margi
 }
 
 STATUS Jpeg2PDF_AddJpeg(PJPEG2PDF pPDF, UINT32 imgW, UINT32 imgH, UINT32 fileSize, UINT8 *pJpeg, UINT8 isColor, PageOrientation pageOrientation,
-                        double dpiX, double dpiY, ScaleMethod scale, bool cropHeight, bool cropWidth)
+                        float dpiX, float dpiY, ScaleMethod scale, bool cropHeight, bool cropWidth)
 {
     STATUS result = ERROR;
     PJPEG2PDF_NODE pNode;
-    double pageLeft, pageBottom;
-    double imgAspect, newImgW, newImgH;
+    float pageLeft, pageBottom;
+    float imgAspect, newImgW, newImgH;
 
     if(pPDF)
     {
@@ -81,9 +81,9 @@ STATUS Jpeg2PDF_AddJpeg(PJPEG2PDF pPDF, UINT32 imgW, UINT32 imgH, UINT32 fileSiz
             if(pNode->pJpeg != NULL)
             {
                 bool jpegPortrait, pagePortrait;
-                double pageWidth, pageHeight; // accounting for page orientation, in PDF units (pixels at PDF_DOT_PER_INCH dpi)
-                double maxImgWidth, maxImgHeight; // actual values accounting for page orientation, in PDF units
-                double jpegWidth, jpegHeight; // jpeg dimensions (accounting for dpiX, dpiY, PDF_DOT_PER_INCH), in PDF units
+                float pageWidth, pageHeight; // accounting for page orientation, in PDF units (pixels at PDF_DOT_PER_INCH dpi)
+                float maxImgWidth, maxImgHeight; // actual values accounting for page orientation, in PDF units
+                float jpegWidth, jpegHeight; // jpeg dimensions (accounting for dpiX, dpiY, PDF_DOT_PER_INCH), in PDF units
                 Fit fit;
 
                 memcpy(pNode->pJpeg, pJpeg, pNode->JpegSize);
@@ -93,7 +93,7 @@ STATUS Jpeg2PDF_AddJpeg(PJPEG2PDF pPDF, UINT32 imgW, UINT32 imgH, UINT32 fileSiz
                 currentImageObject = pPDF->pdfObj;
 
 
-                pPDF->currentOffSet += sprintf(pNode->preFormat, "\n%d 0 obj\n<</Type/XObject/Subtype/Image/Filter/DCTDecode/BitsPerComponent 8/ColorSpace/%s/Width %d/Height %d/Length %d>>\nstream\n",
+                pPDF->currentOffSet += sprintf(pNode->preFormat, "\n%ld 0 obj\n<</Type/XObject/Subtype/Image/Filter/DCTDecode/BitsPerComponent 8/ColorSpace/%s/Width %ld/Height %ld/Length %ld>>\nstream\n",
                                                pPDF->pdfObj, ((isColor) ? "DeviceRGB" : "DeviceGray"), pNode->JpegW, pNode->JpegH, pNode->JpegSize);
 
                 pPDF->currentOffSet += pNode->JpegSize;
@@ -105,10 +105,10 @@ STATUS Jpeg2PDF_AddJpeg(PJPEG2PDF pPDF, UINT32 imgW, UINT32 imgH, UINT32 fileSiz
                 pPDF->pdfObj++;
 
                 /* determine scale of the image keeping aspect ratio */
-                jpegWidth=((double)pNode->JpegW)*PDF_DOT_PER_INCH/dpiX;
-                jpegHeight=((double)pNode->JpegH)*PDF_DOT_PER_INCH/dpiY;
+                jpegWidth=((float)pNode->JpegW)*PDF_DOT_PER_INCH/dpiX;
+                jpegHeight=((float)pNode->JpegH)*PDF_DOT_PER_INCH/dpiY;
                 imgAspect=jpegWidth/jpegHeight;
-                if(JPEG2PDF_DEBUG) logMsg("imgAspect = %f %d %d\n", imgAspect, pNode->JpegW, pNode->JpegH, 3,4,5,6);
+                if(JPEG2PDF_DEBUG) logMsg("imgAspect = %f %ld %ld\n", imgAspect, pNode->JpegW, pNode->JpegH, 3,4,5,6);
 
                 // Determine page orientation:
                 jpegPortrait=(jpegWidth <= jpegHeight);
@@ -183,7 +183,7 @@ STATUS Jpeg2PDF_AddJpeg(PJPEG2PDF pPDF, UINT32 imgW, UINT32 imgH, UINT32 fileSiz
                 /* Page Object */
                 Jpeg2PDF_SetXREF(pPDF, INDEX_USE_PPDF, pPDF->currentOffSet, 'n');
                 pNode->PageObj = pPDF->pdfObj;
-                nChars = sprintf(pFormat, "%d 0 obj\n<</Type/Page/Parent 1 0 R/MediaBox[0 0 %.2f %.2f]/Contents %d 0 R/Resources %d 0 R>>\nendobj\n",
+                nChars = sprintf(pFormat, "%ld 0 obj\n<</Type/Page/Parent 1 0 R/MediaBox[0 0 %.2f %.2f]/Contents %ld 0 R/Resources %ld 0 R>>\nendobj\n",
                                  pPDF->pdfObj, pageWidth, pageHeight, pPDF->pdfObj+1, pPDF->pdfObj + 3);
                 pPDF->currentOffSet += nChars;
                 pFormat += nChars;
@@ -191,11 +191,11 @@ STATUS Jpeg2PDF_AddJpeg(PJPEG2PDF pPDF, UINT32 imgW, UINT32 imgH, UINT32 fileSiz
 
                 /* Contents Object in Page Object */
                 Jpeg2PDF_SetXREF(pPDF, INDEX_USE_PPDF, pPDF->currentOffSet, 'n');
-                pageLeft = (pPDF->margin.left < 0) ? (pageWidth - newImgW)/2 : (pPDF->margin.left * PDF_DOT_PER_INCH);
-                pageBottom = (pPDF->margin.bottom < 0) ? (pageHeight - newImgH)/2 : (pPDF->margin.bottom * PDF_DOT_PER_INCH);
-                sprintf(lenStr, "q\n1 0 0 1 %.2f %.2f cm\n%.2f 0 0 %.2f 0 0 cm\n/I%d Do\nQ\n",
+                pageLeft = (pPDF->margin.left < 0.0f) ? (pageWidth - newImgW) * 0.5f : (pPDF->margin.left * PDF_DOT_PER_INCH);
+                pageBottom = (pPDF->margin.bottom < 0.0f) ? (pageHeight - newImgH) * 0.5f : (pPDF->margin.bottom * PDF_DOT_PER_INCH);
+                sprintf(lenStr, "q\n1 0 0 1 %.2f %.2f cm\n%.2f 0 0 %.2f 0 0 cm\n/I%ld Do\nQ\n",
                         pageLeft, pageBottom, newImgW, newImgH, pPDF->imgObj); // center image
-                nChars = sprintf(pFormat, "%d 0 obj\n<</Length %d 0 R>>stream\n%sendstream\nendobj\n",
+                nChars = sprintf(pFormat, "%ld 0 obj\n<</Length %ld 0 R>>stream\n%sendstream\nendobj\n",
                                  pPDF->pdfObj, pPDF->pdfObj+1, lenStr);
                 pPDF->currentOffSet += nChars;
                 pFormat += nChars;
@@ -203,14 +203,14 @@ STATUS Jpeg2PDF_AddJpeg(PJPEG2PDF pPDF, UINT32 imgW, UINT32 imgH, UINT32 fileSiz
 
                 /* Length Object in Contents Object */
                 Jpeg2PDF_SetXREF(pPDF, INDEX_USE_PPDF, pPDF->currentOffSet, 'n');
-                nChars = sprintf(pFormat, "%d 0 obj\n%ld\nendobj\n", pPDF->pdfObj, strlen(lenStr));
+                nChars = sprintf(pFormat, "%ld 0 obj\n%ld\nendobj\n", pPDF->pdfObj, strlen(lenStr));
                 pPDF->currentOffSet += nChars;
                 pFormat += nChars;
                 pPDF->pdfObj++;
 
                 /* Resources Object in Page Object */
                 Jpeg2PDF_SetXREF(pPDF, INDEX_USE_PPDF, pPDF->currentOffSet, 'n');
-                nChars = sprintf(pFormat, "%d 0 obj\n<</ProcSet[/PDF/%s]/XObject<</I%d %d 0 R>>>>\nendobj\n",
+                nChars = sprintf(pFormat, "%ld 0 obj\n<</ProcSet[/PDF/%s]/XObject<</I%ld %ld 0 R>>>>\nendobj\n",
                                  pPDF->pdfObj, ((isColor) ? "ImageC" : "ImageB"), pPDF->imgObj, currentImageObject);
                 pPDF->currentOffSet += nChars;
                 pFormat += nChars;
@@ -279,7 +279,7 @@ UINT32 Jpeg2PDF_EndDocument(PJPEG2PDF pPDF, char* timestamp, char* title, char* 
         /* Metadata Object with XMP */
         metadataObj = pPDF->pdfObj;
         Jpeg2PDF_SetXREF(pPDF, INDEX_USE_PPDF, pPDF->currentOffSet, 'n');
-        nChars = sprintf(pTail, "%d 0 obj\n<</Type/Metadata /Subtype/XML /Length %d>>\nstream\n%sendstream\nendobj\n", \
+        nChars = sprintf(pTail, "%ld 0 obj\n<</Type/Metadata /Subtype/XML /Length %ld>>\nstream\n%sendstream\nendobj\n", \
                          pPDF->pdfObj, nChars, XMPmetadata);
         free(XMPmetadata);
 
@@ -310,7 +310,7 @@ UINT32 Jpeg2PDF_EndDocument(PJPEG2PDF pPDF, char* timestamp, char* title, char* 
         /* Info Object */
         infoObj = pPDF->pdfObj;
         Jpeg2PDF_SetXREF(pPDF, INDEX_USE_PPDF, pPDF->currentOffSet, 'n');
-        nChars = sprintf(pTail, "%d 0 obj\n<<\n/Title (%s)\n/Author (%s)\n/Keywords (%s)\n/Subject (%s)\n/Producer (%s)\n/Creator (%s)\n/CreationDate (D:%s)\n/ModDate (D:%s)\n>>\nendobj\n", \
+        nChars = sprintf(pTail, "%ld 0 obj\n<<\n/Title (%s)\n/Author (%s)\n/Keywords (%s)\n/Subject (%s)\n/Producer (%s)\n/Creator (%s)\n/CreationDate (D:%s)\n/ModDate (D:%s)\n>>\nendobj\n", \
                          pPDF->pdfObj, title, author, keywords, subject, producer, creator, timestamp, timestamp);
         pPDF->currentOffSet += nChars;
         pTail += nChars;
@@ -318,7 +318,7 @@ UINT32 Jpeg2PDF_EndDocument(PJPEG2PDF pPDF, char* timestamp, char* title, char* 
 
         /* Catalog Object. This is the Last Object */
         Jpeg2PDF_SetXREF(pPDF, INDEX_USE_PPDF, pPDF->currentOffSet, 'n');
-        nChars = sprintf(pTail, "%d 0 obj\n<</Type/Catalog /Pages 1 0 R /Metadata %d 0 R>>\nendobj\n", pPDF->pdfObj, metadataObj);
+        nChars = sprintf(pTail, "%ld 0 obj\n<</Type/Catalog /Pages 1 0 R /Metadata %ld 0 R>>\nendobj\n", pPDF->pdfObj, metadataObj);
         pPDF->currentOffSet += nChars;
         pTail += nChars;
 
@@ -330,21 +330,21 @@ UINT32 Jpeg2PDF_EndDocument(PJPEG2PDF pPDF, char* timestamp, char* title, char* 
         while(pNode != NULL)
         {
             UINT8 curStr[9];
-            sprintf(curStr, "%d 0 R ", pNode->PageObj);
+            sprintf(curStr, "%ld 0 R ", pNode->PageObj);
             strcat(strKids, curStr);
             pNode = pNode->pNext;
         }
 
         if(strlen(strKids) > 1 && strKids[strlen(strKids) - 1] == ' ') strKids[strlen(strKids) - 1] = 0;
 
-        nChars = sprintf(pTail, "1 0 obj\n<</Type/Pages /Kids [%s] /Count %d>>\nendobj\n", strKids, pPDF->nodeCount);
+        nChars = sprintf(pTail, "1 0 obj\n<</Type/Pages /Kids [%s] /Count %ld>>\nendobj\n", strKids, pPDF->nodeCount);
         pPDF->currentOffSet += nChars;
         pTail += nChars;
 
 
         /* The xref & the rest of the tail */
         xrefOffSet = pPDF->currentOffSet;
-        nChars = sprintf(pTail, "xref\n0 %d\n", pPDF->pdfObj+1);
+        nChars = sprintf(pTail, "xref\n0 %ld\n", pPDF->pdfObj+1);
         pPDF->currentOffSet += nChars;
         pTail += nChars;
 
@@ -355,11 +355,11 @@ UINT32 Jpeg2PDF_EndDocument(PJPEG2PDF pPDF, char* timestamp, char* title, char* 
             pTail += nChars;
         }
 
-        nChars = sprintf(pTail, "trailer\n<</Root %d 0 R /Info %d 0 R /Size %d>>\n", pPDF->pdfObj, infoObj, pPDF->pdfObj+1);
+        nChars = sprintf(pTail, "trailer\n<</Root %ld 0 R /Info %ld 0 R /Size %ld>>\n", pPDF->pdfObj, infoObj, pPDF->pdfObj+1);
         pPDF->currentOffSet += nChars;
         pTail += nChars;
 
-        nChars = sprintf(pTail, "startxref\n%d\n%%%%EOF\n", xrefOffSet);
+        nChars = sprintf(pTail, "startxref\n%ld\n%%%%EOF\n", xrefOffSet);
         pPDF->currentOffSet += nChars;
         pTail += nChars;
     }
